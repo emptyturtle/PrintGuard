@@ -434,6 +434,102 @@ document.addEventListener('DOMContentLoaded', function() {
             addCameraModalOverlay.style.display = 'flex';
         }
     }
+
+    const printerTypeDropdown = document.getElementById('modalPrinterConnectionType');
+    const octoprintConfigDiv = document.getElementById('modalOctoprintConfig');
+    const prusalinkConfigDiv = document.getElementById('modalPrusaLinkConfig');
+
+    if (printerTypeDropdown) {
+        printerTypeDropdown.addEventListener('change', (e) => {
+            const selectedType = e.target.value;
+
+            octoprintConfigDiv.style.display = 'none';
+            octoprintConfigDiv.querySelectorAll('input').forEach(input => input.disabled = true);
+            
+            prusalinkConfigDiv.style.display = 'none';
+            prusalinkConfigDiv.querySelectorAll('input').forEach(input => input.disabled = true);
+
+            if (selectedType === 'octoprint') {
+                octoprintConfigDiv.style.display = 'block';
+                octoprintConfigDiv.querySelectorAll('input').forEach(input => input.disabled = false);
+            } else if (selectedType === 'prusalinkpy') {
+                prusalinkConfigDiv.style.display = 'block';
+                prusalinkConfigDiv.querySelectorAll('input').forEach(input => input.disabled = false);
+            }
+        });
+    }
+
+    const linkPrinterForm = document.getElementById('linkPrinterForm');
+    const linkPrinterModal = document.getElementById('printerModalOverlay');
+    if (linkPrinterForm) {
+        linkPrinterForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.textContent;
+            
+            const formData = new FormData(linkPrinterForm);
+            const data = Object.fromEntries(formData.entries());
+            const cameraUUID = settingsCameraUUID.value;
+            
+            // validation
+            if (!data.printer_type) {
+                alert('Please select a connection type');
+                return;
+            }
+            if (!data.name) {
+                alert('Please enter a printer name');
+                return;
+            }
+            if (!data.base_url) {
+                alert('Please enter the URL or IP address');
+                return;
+            }
+            if (!data.api_key) {
+                alert('Please enter the API key');
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Linking...';
+            
+            const body = {
+                printer_type: data.printer_type,
+                name: data.name,
+                base_url: data.base_url,
+                api_key: data.api_key,
+                camera_uuid: cameraUUID
+            };
+
+            try {
+                const res = await fetch(`/printer/add/${cameraUUID}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const responseData = await res.json();
+                
+                if (responseData.success) {
+                    await fetchAndUpdateMetricsForCamera(cameraUUID);
+                    printerModalOverlay.style.display = 'none';
+                    linkPrinterForm.reset();
+                    octoprintConfigDiv.style.display = 'none';
+                    prusalinkConfigDiv.style.display = 'none';
+                    alert('Printer linked successfully!');
+                    setTimeout(() => {
+                        openPrinterModal();
+                    }, 200);
+                } else {
+                    alert('Failed to link printer: ' + (responseData.error || 'unknown'));
+                }
+            } catch (error) {
+                console.error('Error linking printer:', error);
+                alert('Error linking printer. Please check your connection and try again.');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalButtonText;
+            }
+        });
+    }
 });
 
 addCameraBtn?.addEventListener('click', function(e) {
@@ -796,7 +892,7 @@ function unlinkPrinter() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                fetchAndUpdateMetricsForCamera(camIdx);
+                fetchAndUpdateMetricsForCamera(camUUID);
                 alert('Printer unlinked successfully');
             } else {
                 alert('Failed to unlink printer: ' + data.error);
@@ -913,80 +1009,6 @@ document.getElementById('modalPausePrintBtn').addEventListener('click', () => {
 document.getElementById('modalUnlinkPrinterBtn').addEventListener('click', () => {
     unlinkPrinter();
     printerModalOverlay.style.display = 'none';
-});
-
-document.getElementById('modalPrinterConnectionType').addEventListener('change', (e) => {
-    document.getElementById('modalOctoprintConfig').style.display = e.target.value === 'octoprint' ? 'block' : 'none';
-});
-
-document.getElementById('linkPrinterForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const submitButton = e.target.querySelector('button[type="submit"]');
-    const originalButtonText = submitButton.textContent;
-    const printerType = document.getElementById('modalPrinterConnectionType').value.trim();
-    const printerName = document.getElementById('modalPrinterNameInput').value.trim();
-    const baseUrl = document.getElementById('modalOctoprintUrlInput').value.trim();
-    const apiKey = document.getElementById('modalOctoprintApiKeyInput').value.trim();
-
-    if (!printerType) {
-        alert('Please select a connection type');
-        return;
-    }
-    if (!printerName) {
-        alert('Please enter a printer name');
-        return;
-    }
-    if (printerType === 'octoprint') {
-        if (!baseUrl) {
-            alert('Please enter the base URL');
-            return;
-        }
-        if (!apiKey) {
-            alert('Please enter the API key');
-            return;
-        }
-    }
-
-    submitButton.disabled = true;
-    submitButton.textContent = 'Linking...';
-    const cameraUUID = settingsCameraUUID.value;
-    const body = {
-        printer_type: printerType,
-        name: printerName,
-        base_url: baseUrl,
-        api_key: apiKey,
-        camera_uuid: cameraUUID
-    };
-    try {
-        const res = await fetch(`/printer/add/${cameraUUID}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            console.log('Printer linked successfully, updating UI...');
-            await fetchAndUpdateMetricsForCamera(camIdx);
-            printerModalOverlay.style.display = 'none';
-            document.getElementById('linkPrinterForm').reset();
-            document.getElementById('modalOctoprintConfig').style.display = 'none';
-            alert('Printer linked successfully!');
-            setTimeout(() => {
-                console.log('Reopening modal to show printer info...');
-                openPrinterModal();
-            }, 200);
-        } else {
-            console.error('Failed to link printer:', data.error);
-            alert('Failed to link printer: ' + (data.error || 'unknown'));
-        }
-    } catch (error) {
-        console.error('Error linking printer:', error);
-        alert('Error linking printer. Please check your connection and try again.');
-    } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = originalButtonText;
-    }
 });
 
 addCameraModalClose?.addEventListener('click', function() {
@@ -1205,4 +1227,3 @@ addCameraModalClose?.addEventListener('click', function() {
         clearTimeout(previewUpdateTimeout);
     }
 });
-
