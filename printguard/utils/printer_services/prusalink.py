@@ -1,8 +1,9 @@
-from typing import Dict
+from typing import Dict, Optional
 import PrusaLinkPy
+import requests
 from ...models import (FileInfo, JobInfoResponse,
-                       TemperatureReading,
-                       PrinterState, PrinterTemperatures)
+                     TemperatureReading,
+                     PrinterState, PrinterTemperatures)
 
 
 class PrusaLinkPyClient:
@@ -25,37 +26,44 @@ class PrusaLinkPyClient:
             base_url (str): The hostname or IP address of the PrusaLink instance.
             api_key (str): The API key for authentication with PrusaLink.
         """
-        # The PrusaLinkPy library handles URL formatting internally.
         self.client = PrusaLinkPy.PrusaLinkPy(base_url, api_key)
 
 
     def get_job_info(self) -> JobInfoResponse:
         """
         Retrieves information about the current print job.
+        Handles cases where no job is currently active by fetching the definitive printer state.
 
         Returns:
             JobInfoResponse: Complete job information including progress, file details,
-                             and print statistics.
+                             and print statistics. If no job is active, it returns an
+                             object with the current printer state (e.g., 'IDLE', 'BUSY').
 
         Raises:
-            requests.HTTPError: If the API request fails.
-            KeyError: If the response JSON does not contain expected keys (e.g., no active job).
+            requests.HTTPError: If an API request fails.
         """
-        # PrusaLink splits job information across /status and /job endpoints.
         status_resp = self.client.get_status()
         status_resp.raise_for_status()
         status_data = status_resp.json()
 
+        printer_state = status_data.get('printer', {}).get('state')
+        progress_info = status_data.get('job')
+
+        if not progress_info:
+            return JobInfoResponse(
+                job={},
+                progress={},
+                state=printer_state
+            )
+
         job_resp = self.client.get_job()
         job_resp.raise_for_status()
-        job_data = job_resp.json()
+        
+        job_details = {}
+        if job_resp.text:
+            job_data = job_resp.json()
+            job_details = job_data.get('job', {})
 
-        # Combine data to replicate the JobInfoResponse structure.
-        # This will raise an error if 'job' is 'None' in the status response (which is intended).
-        progress_info = status_data['job']
-        job_details = job_data.get('job', {})
-
-        # Create a dictionary that matches the JobInfoResponse structure.
         response_dict = {
             "job": job_details,
             "progress": {
@@ -63,7 +71,7 @@ class PrusaLinkPyClient:
                 "printTime": progress_info.get('time_printing'),
                 "printTimeLeft": progress_info.get('time_remaining')
             },
-            "state": status_data.get('printer', {}).get('state')
+            "state": printer_state
         }
         return JobInfoResponse(**response_dict)
 
@@ -114,12 +122,10 @@ class PrusaLinkPyClient:
         resp.raise_for_status()
         data = resp.json()
 
-        # PrusaLink nests temperatures under a 'temperature' key.
         temp_data = data.get("temperature", {})
         if not temp_data:
             return {}
 
-        # Convert the data into TemperatureReading objects.
         readings = {}
         for key, value in temp_data.items():
             if isinstance(value, dict) and 'actual' in value:
@@ -132,28 +138,26 @@ class PrusaLinkPyClient:
         Gets the completion percentage of the current print job.
 
         Returns:
-            float: Completion percentage (0.0 to 100.0).
-
-        Raises:
-            requests.HTTPError: If the API request fails.
+            float: Completion percentage (0.0 to 100.0). Returns 0.0 if no job is active.
         """
-        # PrusaLink provides progress as a float between 0.0 and 1.0.
-        completion = self.get_job_info().progress.completion
-        return completion * 100 if completion is not None else 0.0
+        try:
+            completion = self.get_job_info().progress.completion
+            return completion * 100 if completion is not None else 0.0
+        except (requests.HTTPError, KeyError):
+            return 0.0
 
-    def current_file(self) -> FileInfo:
+    def current_file(self) -> Optional[FileInfo]:
         """
         Gets information about the currently loaded file.
 
         Returns:
-            FileInfo: Details about the file being printed.
-
-        Raises:
-            requests.HTTPError: If the API request fails.
+            FileInfo: Details about the file being printed, or None if no job is active.
         """
-        # The `job` key contains the file information.
-        file_data = self.get_job_info().job.get("file", {})
-        return FileInfo(**file_data)
+        try:
+            file_data = self.get_job_info().job.get("file", {})
+            return FileInfo(**file_data) if file_data else None
+        except (requests.HTTPError, KeyError):
+            return None
 
     def nozzle_and_bed_temps(self) -> Dict[str, float]:
         """
@@ -190,23 +194,30 @@ class PrusaLinkPyClient:
         a unified printer state object.
 
         Returns:
-            PrinterState: Complete printer state. `jobInfoResponse` may be None if
-                          retrieval fails (e.g., no active job).
+            PrinterState: Complete printer state. `jobInfoResponse` will reflect the
+                          current state.
         """
-        temperature_readings = self.get_printer_temperatures()
-        tool0_temp = temperature_readings.get("tool0")
-        bed_temp = temperature_readings.get("bed")
+        printer_temps = None
+        job_info = None
+        
+        try:
+            temperature_readings = self.get_printer_temperatures()
+            tool0_temp = temperature_readings.get("tool0")
+            bed_temp = temperature_readings.get("bed")
 
-        printer_temps = PrinterTemperatures(
-            nozzle_actual=tool0_temp.actual if tool0_temp else None,
-            nozzle_target=tool0_temp.target if tool0_temp else None,
-            bed_actual=bed_temp.actual if bed_temp else None,
-            bed_target=bed_temp.target if bed_temp else None
-        )
+            printer_temps = PrinterTemperatures(
+                nozzle_actual=tool0_temp.actual if tool0_temp else None,
+                nozzle_target=tool0_temp.target if tool0_temp else None,
+                bed_actual=bed_temp.actual if bed_temp else None,
+                bed_target=bed_temp.target if bed_temp else None
+            )
+        except requests.HTTPError:
+            printer_temps = PrinterTemperatures(nozzle_actual=None, nozzle_target=None, bed_actual=None, bed_target=None)
+
 
         try:
             job_info = self.get_job_info()
-        except Exception:
+        except requests.HTTPError:
             job_info = None
 
         printer_state = PrinterState(
