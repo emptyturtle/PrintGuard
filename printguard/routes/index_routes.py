@@ -109,7 +109,8 @@ async def save_feed_settings(settings: FeedSettings):
             SavedConfig.DETECTION_INTERVAL_MS: settings.detection_interval_ms,
             SavedConfig.PRINTER_STAT_POLLING_RATE_MS: settings.printer_stat_polling_rate_ms,
             SavedConfig.MIN_SSE_DISPATCH_DELAY_MS: settings.min_sse_dispatch_delay_ms,
-            SavedConfig.DISCORD_WEBHOOK_URL: settings.discord_webhook_url
+            SavedConfig.DISCORD_WEBHOOK_URL: settings.discord_webhook_url,
+            SavedConfig.DISCORD_TAG: settings.discord_tag
         }
         update_config(config_data)
         stream_optimizer.invalidate_cache()
@@ -144,7 +145,8 @@ async def get_feed_settings():
             "detection_interval_ms": config.get(SavedConfig.DETECTION_INTERVAL_MS, DETECTION_INTERVAL_MS),
             "printer_stat_polling_rate_ms": config.get(SavedConfig.PRINTER_STAT_POLLING_RATE_MS, PRINTER_STAT_POLLING_RATE_MS),
             "min_sse_dispatch_delay_ms": config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS),
-            "discord_webhook_url": config.get(SavedConfig.DISCORD_WEBHOOK_URL, "")
+            "discord_webhook_url": config.get(SavedConfig.DISCORD_WEBHOOK_URL, ""),
+            "discord_tag": config.get(SavedConfig.DISCORD_TAG, "")
         }
         settings["detections_per_second"] = round(1000 / settings["detection_interval_ms"])
         return {"success": True, "settings": settings}
