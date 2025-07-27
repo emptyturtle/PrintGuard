@@ -14,22 +14,30 @@ def get_subscriptions():
     Returns:
         list: A list of subscription dictionaries, each with at least an 'id' and 'endpoint'.
     """
-    # pylint: disable=C0415
-    from ..app import app
-    return app.state.subscriptions
-
 
 def send_discord_notification(notification: Notification):
     """Send a notification to a configured Discord webhook."""
     config = get_config()
     webhook_url = config.get(SavedConfig.DISCORD_WEBHOOK_URL)
+    tag_value = config.get(SavedConfig.DISCORD_TAG)
 
     if not webhook_url:
-        logging.debug("Discord webhook URL is not configured. Skipping notification.")
         return
 
+    message_content = f"**{notification.title}**\n{notification.body}"
+
+    if tag_value:
+        formatted_tag = tag_value
+        if tag_value.isdigit():
+            formatted_tag = f"<@{tag_value}>"
+        
+        message_content = f"{formatted_tag} {message_content}"
+
     payload = {
-        "content": f"**{notification.title}**\n{notification.body}"
+        "content": message_content,
+        "allowed_mentions": {
+            "parse": ["users", "roles", "everyone"]
+        }
     }
 
     try:
