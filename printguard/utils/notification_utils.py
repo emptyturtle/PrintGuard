@@ -14,6 +14,9 @@ def get_subscriptions():
     Returns:
         list: A list of subscription dictionaries, each with at least an 'id' and 'endpoint'.
     """
+    from ..app import app
+    return app.state.subscriptions if hasattr(app.state, 'subscriptions') else []
+
 
 def send_discord_notification(notification: Notification):
     """Send a notification to a configured Discord webhook."""
@@ -22,6 +25,7 @@ def send_discord_notification(notification: Notification):
     tag_value = config.get(SavedConfig.DISCORD_TAG)
 
     if not webhook_url:
+        logging.debug("No Discord webhook configured, skipping notification.")
         return
 
     message_content = f"**{notification.title}**\n{notification.body}"
@@ -30,7 +34,6 @@ def send_discord_notification(notification: Notification):
         formatted_tag = tag_value
         if tag_value.isdigit():
             formatted_tag = f"<@{tag_value}>"
-        
         message_content = f"{formatted_tag} {message_content}"
 
     payload = {
@@ -41,7 +44,7 @@ def send_discord_notification(notification: Notification):
     }
 
     try:
-        response = requests.post(webhook_url, json=payload)
+        response = requests.post(webhook_url, json=payload, timeout=10)
         response.raise_for_status()
         logging.debug("Successfully sent notification to Discord.")
     except requests.exceptions.RequestException as e:
