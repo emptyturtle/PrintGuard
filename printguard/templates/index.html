@@ -165,6 +165,10 @@
                     <form class="feed-settings-form">
                         <div class="feed-settings-grid">
                             <div class="feed-setting-item">
+                                <label for="discordWebhookUrl">Discord Webhook URL</label>
+                                <input type="url" id="discordWebhookUrl" name="discordWebhookUrl" placeholder="https://discord.com/api/webhooks/..." style="width: 80%; border: 2px dotted var(--text-primary); background: transparent;"/>
+                            </div>
+                            <div class="feed-setting-item">
                                 <label for="streamMaxFps">Max FPS: <span id="streamMaxFps_val">30</span></label>
                                 <input type="range" id="streamMaxFps" name="streamMaxFps" min="1" max="60" step="1" value="30" />
                             </div>

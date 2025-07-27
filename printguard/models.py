@@ -231,6 +231,7 @@ class SavedConfig(str, Enum):
     MIN_SSE_DISPATCH_DELAY_MS = "min_sse_dispatch_delay_ms"
     PUSH_SUBSCRIPTIONS = "push_subscriptions"
     CAMERA_STATES = "camera_states"
+    DISCORD_WEBHOOK_URL = "discord_webhook_url"
 
 class CloudflareTunnelConfig(BaseModel):
     account_id: str
@@ -268,6 +269,7 @@ class FeedSettings(BaseModel):
     detection_interval_ms: int
     printer_stat_polling_rate_ms: int
     min_sse_dispatch_delay_ms: int
+    discord_webhook_url: Optional[str] = None
 
 class PollingTask(BaseModel):
     task: Optional[asyncio.Task] = None

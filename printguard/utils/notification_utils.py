@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 import logging
 import json
+import requests
 from pywebpush import WebPushException, webpush
 
 from ..models import Notification, SavedKey, SavedConfig
@@ -16,6 +17,27 @@ def get_subscriptions():
     # pylint: disable=C0415
     from ..app import app
     return app.state.subscriptions
+
+
+def send_discord_notification(notification: Notification):
+    """Send a notification to a configured Discord webhook."""
+    config = get_config()
+    webhook_url = config.get(SavedConfig.DISCORD_WEBHOOK_URL)
+
+    if not webhook_url:
+        logging.debug("Discord webhook URL is not configured. Skipping notification.")
+        return
+
+    payload = {
+        "content": f"**{notification.title}**\n{notification.body}"
+    }
+
+    try:
+        response = requests.post(webhook_url, json=payload)
+        response.raise_for_status()
+        logging.debug("Successfully sent notification to Discord.")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error sending notification to Discord: {e}")
 
 def remove_subscription(subscription_id = None, subscription = None):
     """Remove a subscription by ID or subscription object.
@@ -36,11 +58,7 @@ def remove_subscription(subscription_id = None, subscription = None):
         logging.error("No subscription ID or object provided to remove.")
 
 async def send_defect_notification(alert_id):
-    """Send a defect notification for a given alert ID to all subscribers.
-
-    Args:
-        alert_id (str): The ID of the alert for which to send a notification.
-    """
+    """Send a defect notification for a given alert ID to all subscribers."""
     logging.debug("Attempting to send defect notification for alert ID: %s", alert_id)
     alert = get_alert(alert_id)
     if alert:
@@ -53,6 +71,10 @@ async def send_defect_notification(alert_id):
             title=f"Defect - Camera {camera_nickname}",
             body=f"Defect detected on camera {camera_nickname}",
         )
+        
+        # Send to Discord
+        send_discord_notification(notification)
+
         subscriptions = get_subscriptions() or []
         logging.debug("Created notification object without image payload, sending to %d subscriptions",
                       len(subscriptions))
