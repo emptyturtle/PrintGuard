@@ -107,7 +107,8 @@ class CurrentPayload(BaseModel):
     temps: Optional[list] = Field(None, alias="temps")
 
 class PrinterType(str, Enum):
-    OCTOPRINT = "octoprint"
+    OCTOPRINT = "octoprint",
+    PRUSALINKPY = "prusalinkpy",
 
 class PrinterConfig(BaseModel):
     name: str
