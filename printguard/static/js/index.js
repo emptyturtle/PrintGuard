@@ -696,7 +696,8 @@ function saveFeedSettings() {
         detections_per_second: parseInt(document.getElementById('detectionsPerSecond').value),
         detection_interval_ms: parseInt(document.getElementById('detectionInterval').value),
         printer_stat_polling_rate_ms: parseInt(document.getElementById('printerStatPollingRate').value),
-        min_sse_dispatch_delay_ms: parseInt(document.getElementById('minSseDispatchDelay').value)
+        min_sse_dispatch_delay_ms: parseInt(document.getElementById('minSseDispatchDelay').value),
+        discord_webhook_url: document.getElementById('discordWebhookUrl').value
     };
     fetch('/save-feed-settings', {
         method: 'POST',
@@ -755,6 +756,7 @@ function loadFeedSettings() {
     .then(data => {
         if (data.success && data.settings) {
             const settings = data.settings;
+            document.getElementById('discordWebhookUrl').value = settings.discord_webhook_url || ''; // Add this line
             updateSliderValue('streamMaxFps', settings.stream_max_fps);
             updateSliderValue('streamTunnelFps', settings.stream_tunnel_fps);
             updateSliderValue('streamJpegQuality', settings.stream_jpeg_quality);
@@ -811,6 +813,7 @@ function unlinkPrinter() {
 
 document.getElementById('linkPrinterBtn')?.addEventListener('click', openPrinterModal);
 document.getElementById('printerConfigBtn')?.addEventListener('click', openPrinterModal);
+document.getElementById('discordWebhookUrl').addEventListener('change', saveFeedSettings);
 
 const printerModalOverlay = document.getElementById('printerModalOverlay');
 const printerModalClose = document.getElementById('printerModalClose');

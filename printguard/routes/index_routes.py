@@ -88,7 +88,7 @@ async def update_settings(request: Request,
 
 @router.post("/save-feed-settings", include_in_schema=False)
 async def save_feed_settings(settings: FeedSettings):
-    """Save camera feed and detection settings to configuration.
+        """Save camera feed and detection settings to configuration.
 
     Args:
         settings (FeedSettings): Feed configuration settings including FPS,
@@ -108,7 +108,8 @@ async def save_feed_settings(settings: FeedSettings):
             SavedConfig.STREAM_MAX_WIDTH: settings.stream_max_width,
             SavedConfig.DETECTION_INTERVAL_MS: settings.detection_interval_ms,
             SavedConfig.PRINTER_STAT_POLLING_RATE_MS: settings.printer_stat_polling_rate_ms,
-            SavedConfig.MIN_SSE_DISPATCH_DELAY_MS: settings.min_sse_dispatch_delay_ms
+            SavedConfig.MIN_SSE_DISPATCH_DELAY_MS: settings.min_sse_dispatch_delay_ms,
+            SavedConfig.DISCORD_WEBHOOK_URL: settings.discord_webhook_url
         }
         update_config(config_data)
         stream_optimizer.invalidate_cache()
@@ -123,7 +124,7 @@ async def save_feed_settings(settings: FeedSettings):
 
 @router.get("/get-feed-settings", include_in_schema=False)
 async def get_feed_settings():
-    """Retrieve current camera feed and detection settings.
+        """Retrieve current camera feed and detection settings.
 
     Returns:
         dict: Current feed settings including FPS, quality, detection intervals,
@@ -142,7 +143,8 @@ async def get_feed_settings():
             "stream_max_width": config.get(SavedConfig.STREAM_MAX_WIDTH, STREAM_MAX_WIDTH),
             "detection_interval_ms": config.get(SavedConfig.DETECTION_INTERVAL_MS, DETECTION_INTERVAL_MS),
             "printer_stat_polling_rate_ms": config.get(SavedConfig.PRINTER_STAT_POLLING_RATE_MS, PRINTER_STAT_POLLING_RATE_MS),
-            "min_sse_dispatch_delay_ms": config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS)
+            "min_sse_dispatch_delay_ms": config.get(SavedConfig.MIN_SSE_DISPATCH_DELAY_MS, MIN_SSE_DISPATCH_DELAY_MS),
+            "discord_webhook_url": config.get(SavedConfig.DISCORD_WEBHOOK_URL, "")
         }
         settings["detections_per_second"] = round(1000 / settings["detection_interval_ms"])
         return {"success": True, "settings": settings}
