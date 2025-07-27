@@ -88,11 +88,11 @@ async def update_settings(request: Request,
 
 @router.post("/save-feed-settings", include_in_schema=False)
 async def save_feed_settings(settings: FeedSettings):
-        """Save camera feed and detection settings to configuration.
+    """Save camera feed and detection settings to configuration.
 
     Args:
         settings (FeedSettings): Feed configuration settings including FPS,
-                                quality, detection intervals, and polling rates.
+                                 quality, detection intervals, and polling rates.
 
     Returns:
         dict: Success status and message indicating settings were saved.
@@ -124,7 +124,7 @@ async def save_feed_settings(settings: FeedSettings):
 
 @router.get("/get-feed-settings", include_in_schema=False)
 async def get_feed_settings():
-        """Retrieve current camera feed and detection settings.
+    """Retrieve current camera feed and detection settings.
 
     Returns:
         dict: Current feed settings including FPS, quality, detection intervals,
